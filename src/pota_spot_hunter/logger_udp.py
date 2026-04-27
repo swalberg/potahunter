@@ -13,6 +13,7 @@ CLIENT_ID = "POTA Spot Hunter"
 def build_status_packet(spot: Spot) -> bytes:
     frequency_hz = int(spot.frequency_khz * 1000)
     dial_frequency_hz = frequency_hz
+    status_note = f"{spot.frequency_khz / 1000:.3f} {spot.mode} {spot.park}"
     dx_call = spot.activator
     report = ""
     tx_mode = spot.mode
@@ -35,11 +36,17 @@ def build_status_packet(spot: Spot) -> bytes:
             _bool(False),
             _bool(False),
             _uint32(0),
+            _uint32(0),
             _qstring(de_call),
             _qstring(de_grid),
             _qstring(dx_grid),
             _bool(False),
-            _qstring(f"{spot.frequency_khz / 1000:.3f} {spot.mode} {spot.park}"),
+            _qstring(""),
+            _bool(False),
+            _uint8(0),
+            _uint32(0),
+            _uint32(0),
+            _qstring(status_note),
         ]
     )
 
@@ -64,6 +71,10 @@ def _uint64(value: int) -> bytes:
 
 def _bool(value: bool) -> bytes:
     return b"\x01" if value else b"\x00"
+
+
+def _uint8(value: int) -> bytes:
+    return struct.pack(">B", value)
 
 
 def _qstring(value: str | None) -> bytes:
