@@ -25,6 +25,7 @@ def test_parse_pota_spots_from_api_shape():
     assert spots[0].mode == "SSB"
     assert spots[0].spotter == "W1XYZ"
     assert spots[0].comments == "57 into CT"
+    assert spots[0].expires_at == "2026-04-27T18:00:00Z"
 
 
 def test_parse_skips_unusable_spot():
