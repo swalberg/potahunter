@@ -28,3 +28,23 @@ pota-spot-hunter
 - POTA spots are fetched from `https://api.pota.app/spot/activator`.
 - OmniRig control is used on Windows through COM.
 - Logger updates are sent as WSJT-X-compatible UDP messages. Log4OM is the first validation target.
+
+## Windows Validation
+
+1. Start OmniRig and confirm the target radio is connected.
+2. Start Log4OM and enable WSJT-X-compatible UDP reception.
+3. Run `pota-spot-hunter`.
+4. Click a POTA spot row.
+5. Confirm the radio changes to the spot frequency and mode.
+6. Confirm Log4OM receives the selected callsign, frequency, mode, and park reference.
+7. Click `Worked` and confirm the row disappears.
+8. Wait for or simulate a same-activator spot on another band or mode and confirm it can appear again.
+9. Click `Can't Hear` and confirm the row disappears until the configured ignore period expires.
+
+## Packaging on Windows
+
+```powershell
+.\scripts\package-windows.ps1
+```
+
+The packaged executable is written under `dist`.
