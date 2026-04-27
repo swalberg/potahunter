@@ -1,35 +1,39 @@
+import argparse
 import sys
 
 from PySide6.QtWidgets import QApplication
 
-from .domain import Spot
 from .gui import MainWindow
-from .rig import FakeRigController
+from .logger_udp import LoggerClient
+from .rig import FakeRigController, OmniRigController, RigController
 from .settings import load_settings
+from .spot_source import PotaSpotSource
 from .spot_state import SpotState
 
 
-class FakeLoggerClient:
-    def __init__(self) -> None:
-        self.sent: list[Spot] = []
-
-    def send_spot(self, spot: Spot) -> None:
-        self.sent.append(spot)
+def choose_rig_controller(use_fake: bool, rig_number: int) -> RigController:
+    if use_fake:
+        return FakeRigController()
+    return OmniRigController(rig_number=rig_number)
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fake-rig", action="store_true", help="Use fake rig controller")
+    args = parser.parse_args()
+
     settings = load_settings()
     app = QApplication(sys.argv)
-    sample_spots = [
-        Spot("K1ABC", "US-1234", 14244.0, "SSB", "W1XYZ", "57 into CT"),
-        Spot("W9XYZ", "US-9876", 7032.0, "CW", "N0CALL", "CQ POTA"),
-    ]
+    source = PotaSpotSource()
     window = MainWindow(
-        spots=sample_spots,
+        spots=[],
         state=SpotState(ignore_minutes=settings.ignore_minutes),
-        rig=FakeRigController(),
-        logger=FakeLoggerClient(),
+        rig=choose_rig_controller(args.fake_rig, settings.omnirig_rig_number),
+        logger=LoggerClient(settings.logger_host, settings.logger_port),
+        spot_source=source,
+        refresh_seconds=settings.refresh_seconds,
     )
     window.resize(1100, 600)
     window.show()
+    window.refresh_spots()
     return app.exec()

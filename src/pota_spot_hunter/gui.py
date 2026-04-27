@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -25,7 +25,15 @@ class Logger(Protocol):
 class MainWindow(QMainWindow):
     HEADERS = ["Call", "Freq", "Band", "Mode", "Park", "Comments", "After Trying"]
 
-    def __init__(self, spots: list[Spot], state: SpotState, rig: RigController, logger: Logger) -> None:
+    def __init__(
+        self,
+        spots: list[Spot],
+        state: SpotState,
+        rig: RigController,
+        logger: Logger,
+        spot_source=None,
+        refresh_seconds: int = 60,
+    ) -> None:
         super().__init__()
         self.setWindowTitle("POTA Spot Hunter")
         self.all_spots = spots
@@ -33,6 +41,11 @@ class MainWindow(QMainWindow):
         self.state = state
         self.rig = rig
         self.logger = logger
+        self.spot_source = spot_source
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.timeout.connect(self.refresh_spots)
+        if self.spot_source is not None:
+            self.refresh_timer.start(refresh_seconds * 1000)
 
         self.table = QTableWidget(0, len(self.HEADERS))
         self.table.setHorizontalHeaderLabels(self.HEADERS)
@@ -46,7 +59,9 @@ class MainWindow(QMainWindow):
         root = QWidget()
         layout = QVBoxLayout(root)
         toolbar = QHBoxLayout()
-        toolbar.addWidget(QPushButton("Refresh"))
+        refresh_button = QPushButton("Refresh")
+        refresh_button.clicked.connect(self.refresh_spots)
+        toolbar.addWidget(refresh_button)
         toolbar.addWidget(QPushButton("Settings"))
         toolbar.addStretch()
         layout.addLayout(toolbar)
@@ -68,6 +83,18 @@ class MainWindow(QMainWindow):
             }
             """
         )
+        self.render_spots()
+
+    def refresh_spots(self) -> None:
+        if self.spot_source is None:
+            self.render_spots()
+            return
+        try:
+            self.all_spots = self.spot_source.fetch()
+        except Exception as exc:
+            self.status_label.setText(f"POTA refresh failed: {exc}")
+            return
+        self.status_label.setText(f"Loaded {len(self.all_spots)} POTA spots")
         self.render_spots()
 
     def render_spots(self) -> None:
