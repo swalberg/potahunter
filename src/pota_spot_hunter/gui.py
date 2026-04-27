@@ -141,8 +141,12 @@ class MainWindow(QMainWindow):
         dialog = SettingsDialog(self.settings)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        self.settings = dialog.to_settings()
-        save_settings(self.settings, self.settings_path)
+        try:
+            self.settings = dialog.to_settings()
+            save_settings(self.settings, self.settings_path)
+        except Exception as exc:
+            self.status_label.setText(f"Settings error: {exc}")
+            return
         self.state.ignore_minutes = self.settings.ignore_minutes
         if self.spot_source is not None:
             self.refresh_timer.start(self.settings.refresh_seconds * 1000)

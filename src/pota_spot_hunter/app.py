@@ -32,6 +32,7 @@ def main() -> int:
         logger=LoggerClient(settings.logger_host, settings.logger_port),
         spot_source=source,
         refresh_seconds=settings.refresh_seconds,
+        settings=settings,
     )
     window.resize(1100, 600)
     window.show()
