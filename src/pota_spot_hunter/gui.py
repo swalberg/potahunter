@@ -161,7 +161,9 @@ class MainWindow(QMainWindow):
         self.refresh_timer.stop()
         if self.refresh_thread is not None:
             self.refresh_thread.quit()
-            self.refresh_thread.wait(12000)
+            if not self.refresh_thread.wait(12000):
+                event.ignore()
+                return
             self._clear_refresh_worker()
             self.refresh_button.setEnabled(True)
         super().closeEvent(event)
