@@ -1,3 +1,5 @@
+import time
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QPushButton
 
@@ -139,6 +141,34 @@ def test_refresh_failure_keeps_existing_spots(qtbot):
     assert window.status_label.text() == "POTA refresh failed: network down"
 
 
+def test_refresh_worker_success_cleans_up_thread(qtbot):
+    spot = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    window = make_window(qtbot, [], spot_source=FakeSpotSource([spot]))
+
+    window.refresh_spots()
+
+    qtbot.waitUntil(lambda: window.refresh_thread is None, timeout=1000)
+
+    assert window.table.rowCount() == 1
+    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.refresh_worker is None
+    assert window.refresh_button.isEnabled() is True
+
+
+def test_close_waits_for_inflight_refresh(qtbot):
+    source = BlockingSpotSource()
+    window = make_window(qtbot, [], spot_source=source)
+
+    window.refresh_spots()
+
+    assert window.refresh_thread is not None
+    window.close()
+
+    assert source.fetch_finished is True
+    assert window.refresh_thread is None
+    assert window.refresh_worker is None
+
+
 def make_window(qtbot, spots, rig=None, logger=None, spot_source=None):
     window = MainWindow(
         spots=spots,
@@ -167,3 +197,15 @@ class FakeSpotSource:
     def fetch(self):
         self.fetch_calls += 1
         return self.spots
+
+
+class BlockingSpotSource:
+    def __init__(self):
+        self.fetch_started = False
+        self.fetch_finished = False
+
+    def fetch(self):
+        self.fetch_started = True
+        time.sleep(0.05)
+        self.fetch_finished = True
+        return []

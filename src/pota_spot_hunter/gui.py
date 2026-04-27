@@ -157,6 +157,15 @@ class MainWindow(QMainWindow):
         self.refresh_thread = None
         self.refresh_worker = None
 
+    def closeEvent(self, event) -> None:
+        self.refresh_timer.stop()
+        if self.refresh_thread is not None:
+            self.refresh_thread.quit()
+            self.refresh_thread.wait(12000)
+            self._clear_refresh_worker()
+            self.refresh_button.setEnabled(True)
+        super().closeEvent(event)
+
     def render_spots(self) -> None:
         self.visible_spots = self.state.visible_spots(self.all_spots)
         self.table.setRowCount(len(self.visible_spots))
