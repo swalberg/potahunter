@@ -28,19 +28,19 @@ class FakeRigController:
 
 class OmniRigController:
     MODE_MAP = {
-        "CW": 1,
+        "LSB": 1,
         "USB": 2,
-        "LSB": 3,
         "SSB": 2,
-        "DIGI": 4,
-        "FT8": 4,
+        "CW": 3,
+        "DIGI": 12,
+        "FT8": 12,
     }
 
     def __init__(self, rig_number: int = 1) -> None:
-        if win32com_client is None:
-            raise RuntimeError("pywin32 is required for OmniRig control on Windows")
         if rig_number not in (1, 2):
             raise ValueError("rig_number must be 1 or 2")
+        if win32com_client is None:
+            raise RuntimeError("pywin32 is required for OmniRig control on Windows")
         self.omnirig = win32com_client.Dispatch("OmniRig.OmniRigX")
         self.rig = self.omnirig.Rig1 if rig_number == 1 else self.omnirig.Rig2
 
