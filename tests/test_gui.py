@@ -104,12 +104,48 @@ def test_stylesheet_sets_explicit_button_contrast(qtbot):
     assert "color: #111827" in stylesheet
 
 
-def make_window(qtbot, spots, rig=None, logger=None):
+def test_refresh_starts_worker_without_fetching_on_gui_thread(qtbot):
+    source = FakeSpotSource([Spot("K1ABC", "US-1234", 14244.0, "SSB")])
+    window = make_window(qtbot, [], spot_source=source)
+
+    window.refresh_spots()
+
+    assert source.fetch_calls == 0
+    assert window.refresh_button.isEnabled() is False
+    assert "Refreshing POTA spots" in window.status_label.text()
+
+
+def test_refresh_success_updates_spots_and_status(qtbot):
+    spot = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    window = make_window(qtbot, [], spot_source=FakeSpotSource([]))
+
+    window.handle_refresh_success([spot])
+
+    assert window.table.rowCount() == 1
+    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.refresh_button.isEnabled() is True
+    assert window.status_label.text() == "Loaded 1 POTA spots"
+
+
+def test_refresh_failure_keeps_existing_spots(qtbot):
+    existing = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    window = make_window(qtbot, [existing], spot_source=FakeSpotSource([]))
+
+    window.handle_refresh_failure("network down")
+
+    assert window.table.rowCount() == 1
+    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.refresh_button.isEnabled() is True
+    assert window.status_label.text() == "POTA refresh failed: network down"
+
+
+def make_window(qtbot, spots, rig=None, logger=None, spot_source=None):
     window = MainWindow(
         spots=spots,
         state=SpotState(ignore_minutes=15),
         rig=rig or FakeRigController(),
         logger=logger or FakeLogger(),
+        spot_source=spot_source,
     )
     qtbot.addWidget(window)
     window.show()
@@ -121,3 +157,13 @@ def click_action_button(qtbot, window, text):
     buttons = actions.findChildren(QPushButton)
     button = next(button for button in buttons if button.text() == text)
     qtbot.mouseClick(button, Qt.MouseButton.LeftButton)
+
+
+class FakeSpotSource:
+    def __init__(self, spots):
+        self.spots = spots
+        self.fetch_calls = 0
+
+    def fetch(self):
+        self.fetch_calls += 1
+        return self.spots

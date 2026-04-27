@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -22,6 +22,26 @@ class Logger(Protocol):
         ...
 
 
+class SpotSource(Protocol):
+    def fetch(self) -> list[Spot]:
+        ...
+
+
+class RefreshWorker(QObject):
+    finished = Signal(list)
+    failed = Signal(str)
+
+    def __init__(self, spot_source: SpotSource) -> None:
+        super().__init__()
+        self.spot_source = spot_source
+
+    def run(self) -> None:
+        try:
+            self.finished.emit(self.spot_source.fetch())
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
 class MainWindow(QMainWindow):
     HEADERS = ["Call", "Freq", "Band", "Mode", "Park", "Comments", "After Trying"]
 
@@ -31,7 +51,7 @@ class MainWindow(QMainWindow):
         state: SpotState,
         rig: RigController,
         logger: Logger,
-        spot_source=None,
+        spot_source: SpotSource | None = None,
         refresh_seconds: int = 60,
     ) -> None:
         super().__init__()
@@ -42,6 +62,8 @@ class MainWindow(QMainWindow):
         self.rig = rig
         self.logger = logger
         self.spot_source = spot_source
+        self.refresh_thread: QThread | None = None
+        self.refresh_worker: RefreshWorker | None = None
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self.refresh_spots)
         if self.spot_source is not None:
@@ -59,9 +81,9 @@ class MainWindow(QMainWindow):
         root = QWidget()
         layout = QVBoxLayout(root)
         toolbar = QHBoxLayout()
-        refresh_button = QPushButton("Refresh")
-        refresh_button.clicked.connect(self.refresh_spots)
-        toolbar.addWidget(refresh_button)
+        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button.clicked.connect(self.refresh_spots)
+        toolbar.addWidget(self.refresh_button)
         toolbar.addWidget(QPushButton("Settings"))
         toolbar.addStretch()
         layout.addLayout(toolbar)
@@ -104,13 +126,36 @@ class MainWindow(QMainWindow):
         if self.spot_source is None:
             self.render_spots()
             return
-        try:
-            self.all_spots = self.spot_source.fetch()
-        except Exception as exc:
-            self.status_label.setText(f"POTA refresh failed: {exc}")
+        if self.refresh_thread is not None:
             return
+        self.refresh_button.setEnabled(False)
+        self.status_label.setText("Refreshing POTA spots...")
+        self.refresh_thread = QThread(self)
+        self.refresh_worker = RefreshWorker(self.spot_source)
+        self.refresh_worker.moveToThread(self.refresh_thread)
+        self.refresh_thread.started.connect(self.refresh_worker.run)
+        self.refresh_worker.finished.connect(self.handle_refresh_success)
+        self.refresh_worker.failed.connect(self.handle_refresh_failure)
+        self.refresh_worker.finished.connect(self.refresh_thread.quit)
+        self.refresh_worker.failed.connect(self.refresh_thread.quit)
+        self.refresh_thread.finished.connect(self.refresh_worker.deleteLater)
+        self.refresh_thread.finished.connect(self.refresh_thread.deleteLater)
+        self.refresh_thread.finished.connect(self._clear_refresh_worker)
+        self.refresh_thread.start()
+
+    def handle_refresh_success(self, spots: list[Spot]) -> None:
+        self.all_spots = spots
         self.status_label.setText(f"Loaded {len(self.all_spots)} POTA spots")
+        self.refresh_button.setEnabled(True)
         self.render_spots()
+
+    def handle_refresh_failure(self, message: str) -> None:
+        self.status_label.setText(f"POTA refresh failed: {message}")
+        self.refresh_button.setEnabled(True)
+
+    def _clear_refresh_worker(self) -> None:
+        self.refresh_thread = None
+        self.refresh_worker = None
 
     def render_spots(self) -> None:
         self.visible_spots = self.state.visible_spots(self.all_spots)
