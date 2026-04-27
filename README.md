@@ -43,8 +43,10 @@ pota-spot-hunter
 
 ## Packaging on Windows
 
+The packaging script creates `.venv` if needed, installs the Windows dependencies into it, runs the tests, and builds a one-file executable.
+
 ```powershell
 .\scripts\package-windows.ps1
 ```
 
-The packaged executable is written under `dist`.
+The packaged executable is written to `dist\POTA Spot Hunter.exe`.
