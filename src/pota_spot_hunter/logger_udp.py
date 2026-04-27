@@ -13,7 +13,6 @@ CLIENT_ID = "POTA Spot Hunter"
 def build_status_packet(spot: Spot) -> bytes:
     frequency_hz = int(spot.frequency_khz * 1000)
     dial_frequency_hz = frequency_hz
-    status_note = f"{spot.frequency_khz / 1000:.3f} {spot.mode} {spot.park}"
     dx_call = spot.activator
     report = ""
     tx_mode = spot.mode
@@ -46,7 +45,7 @@ def build_status_packet(spot: Spot) -> bytes:
             _uint8(0),
             _uint32(0),
             _uint32(0),
-            _qstring(status_note),
+            _qstring(CLIENT_ID),
         ]
     )
 

@@ -27,7 +27,6 @@ def test_status_packet_contains_wsjt_x_header_and_spot_details():
     assert b"POTA Spot Hunter" in packet
     assert b"K1ABC" in packet
     assert b"US-1234" in packet
-    assert b"14.244" in packet
     assert b"SSB" in packet
 
 
@@ -66,7 +65,7 @@ def test_status_packet_fields_are_aligned():
     assert reader.uint8() == 0
     assert reader.uint32() == 0
     assert reader.uint32() == 0
-    assert reader.qstring() == "14.244 SSB US-1234"
+    assert reader.qstring() == "POTA Spot Hunter"
     assert reader.done()
 
 
