@@ -90,6 +90,34 @@ def test_open_settings_reports_invalid_settings(qtbot, monkeypatch):
     assert "Settings error: logger_host must not be empty" == window.status_label.text()
 
 
+def test_open_settings_does_not_update_runtime_state_when_save_fails(qtbot, monkeypatch):
+    original = AppSettings(refresh_seconds=60, ignore_minutes=15)
+    window = make_window(qtbot, settings=original, spot_source=FakeSpotSource())
+
+    class FakeDialog:
+        def __init__(self, settings):
+            self.settings = settings
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def to_settings(self):
+            return AppSettings(refresh_seconds=30, ignore_minutes=10)
+
+    def fail_save(settings, path):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("pota_spot_hunter.gui.SettingsDialog", FakeDialog)
+    monkeypatch.setattr("pota_spot_hunter.gui.save_settings", fail_save)
+
+    window.open_settings()
+
+    assert window.settings == original
+    assert window.state.ignore_minutes == 15
+    assert window.refresh_timer.interval() == 60000
+    assert window.status_label.text() == "Settings error: disk full"
+
+
 def make_window(qtbot, settings=None, settings_path=None, spot_source=None):
     window = MainWindow(
         spots=[Spot("K1ABC", "US-1234", 14244.0, "SSB")],
