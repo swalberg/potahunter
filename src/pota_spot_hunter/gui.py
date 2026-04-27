@@ -81,6 +81,21 @@ class MainWindow(QMainWindow):
                 background: #dbeafe;
                 color: #111827;
             }
+            QPushButton {
+                background: #ffffff;
+                color: #111827;
+                border: 1px solid #9ca3af;
+                border-radius: 4px;
+                padding: 4px 8px;
+            }
+            QPushButton:hover {
+                background: #f3f4f6;
+                border-color: #6b7280;
+            }
+            QPushButton:pressed {
+                background: #e5e7eb;
+                color: #111827;
+            }
             """
         )
         self.render_spots()

@@ -94,6 +94,16 @@ def test_row_activation_reports_logger_errors(qtbot):
     assert "udp down" in window.status_label.text()
 
 
+def test_stylesheet_sets_explicit_button_contrast(qtbot):
+    window = make_window(qtbot, [Spot("K1ABC", "US-1234", 14244.0, "SSB")])
+
+    stylesheet = window.styleSheet()
+
+    assert "QPushButton" in stylesheet
+    assert "background: #ffffff" in stylesheet
+    assert "color: #111827" in stylesheet
+
+
 def make_window(qtbot, spots, rig=None, logger=None):
     window = MainWindow(
         spots=spots,
