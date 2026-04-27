@@ -4,10 +4,17 @@ from PySide6.QtWidgets import QApplication
 
 from .domain import Spot
 from .gui import MainWindow
-from .logger_udp import LoggerClient
 from .rig import FakeRigController
 from .settings import load_settings
 from .spot_state import SpotState
+
+
+class FakeLoggerClient:
+    def __init__(self) -> None:
+        self.sent: list[Spot] = []
+
+    def send_spot(self, spot: Spot) -> None:
+        self.sent.append(spot)
 
 
 def main() -> int:
@@ -21,7 +28,7 @@ def main() -> int:
         spots=sample_spots,
         state=SpotState(ignore_minutes=settings.ignore_minutes),
         rig=FakeRigController(),
-        logger=LoggerClient(settings.logger_host, settings.logger_port),
+        logger=FakeLoggerClient(),
     )
     window.resize(1100, 600)
     window.show()

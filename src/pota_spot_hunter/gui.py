@@ -1,3 +1,5 @@
+from typing import Protocol
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -15,10 +17,15 @@ from .rig import RigController
 from .spot_state import SpotState
 
 
+class Logger(Protocol):
+    def send_spot(self, spot: Spot) -> None:
+        ...
+
+
 class MainWindow(QMainWindow):
     HEADERS = ["Call", "Freq", "Band", "Mode", "Park", "Comments", "After Trying"]
 
-    def __init__(self, spots: list[Spot], state: SpotState, rig: RigController, logger) -> None:
+    def __init__(self, spots: list[Spot], state: SpotState, rig: RigController, logger: Logger) -> None:
         super().__init__()
         self.setWindowTitle("POTA Spot Hunter")
         self.all_spots = spots
