@@ -158,7 +158,6 @@ class MainWindow(QMainWindow):
         self.refresh_worker = None
 
     def closeEvent(self, event) -> None:
-        self.refresh_timer.stop()
         if self.refresh_thread is not None:
             self.refresh_thread.quit()
             if not self.refresh_thread.wait(12000):
@@ -166,6 +165,7 @@ class MainWindow(QMainWindow):
                 return
             self._clear_refresh_worker()
             self.refresh_button.setEnabled(True)
+        self.refresh_timer.stop()
         super().closeEvent(event)
 
     def render_spots(self) -> None:

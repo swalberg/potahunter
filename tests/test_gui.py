@@ -170,16 +170,20 @@ def test_close_waits_for_inflight_refresh(qtbot):
 
 
 def test_close_ignores_event_when_refresh_does_not_finish(qtbot):
-    window = make_window(qtbot, [])
+    window = make_window(qtbot, [], spot_source=FakeSpotSource([]))
     window.refresh_thread = FakeRefreshThread(wait_result=False)
     window.refresh_worker = object()
+    assert window.refresh_timer.isActive() is True
     event = FakeCloseEvent()
 
     window.closeEvent(event)
 
     assert event.ignored is True
+    assert window.refresh_timer.isActive() is True
     assert window.refresh_thread is not None
     assert window.refresh_worker is not None
+    assert window.refresh_thread.quit_called is True
+    assert window.refresh_thread.wait_timeout == 12000
 
 
 def make_window(qtbot, spots, rig=None, logger=None, spot_source=None):
@@ -239,9 +243,11 @@ class FakeRefreshThread:
     def __init__(self, wait_result):
         self.wait_result = wait_result
         self.quit_called = False
+        self.wait_timeout = None
 
     def quit(self):
         self.quit_called = True
 
     def wait(self, timeout):
+        self.wait_timeout = timeout
         return self.wait_result
