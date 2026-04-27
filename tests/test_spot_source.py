@@ -28,10 +28,34 @@ def test_parse_pota_spots_from_api_shape():
     assert spots[0].expires_at == "2026-04-27T18:00:00Z"
 
 
-def test_parse_skips_unusable_spot():
-    payload = [{"activator": "K1ABC", "reference": "US-1234", "frequency": "", "mode": "SSB"}]
+def test_parse_skips_unusable_spots_and_preserves_valid_neighbors():
+    payload = [
+        {"activator": "K1ABC", "reference": "US-1234", "frequency": "", "mode": "SSB"},
+        {"activator": None, "reference": "US-1234", "frequency": "14.244", "mode": "SSB"},
+        {"activator": "K2ABC", "reference": "   ", "frequency": "14.244", "mode": "SSB"},
+        {"activator": "K3ABC", "reference": "US-3333", "frequency": "14.244", "mode": ""},
+        {
+            "activator": "K4ABC",
+            "reference": "US-4444",
+            "frequency": "7.032",
+            "mode": "CW",
+            "spotter": None,
+            "comments": None,
+        },
+    ]
 
-    assert parse_pota_spots(payload) == []
+    spots = parse_pota_spots(payload)
+
+    assert len(spots) == 1
+    assert spots[0].activator == "K4ABC"
+    assert spots[0].park == "US-4444"
+    assert spots[0].spotter == ""
+    assert spots[0].comments == ""
+
+
+def test_parse_rejects_non_list_payload():
+    with pytest.raises(SpotSourceError, match="Expected POTA spots list"):
+        parse_pota_spots({"spots": []})
 
 
 def test_fetch_wraps_http_errors():

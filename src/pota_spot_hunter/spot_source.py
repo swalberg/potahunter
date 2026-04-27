@@ -26,18 +26,26 @@ class PotaSpotSource:
 
 
 def parse_pota_spots(payload: list[dict[str, Any]]) -> list[Spot]:
+    if not isinstance(payload, list):
+        raise SpotSourceError("Expected POTA spots list")
+
     spots: list[Spot] = []
     for item in payload:
+        if not isinstance(item, dict):
+            continue
         try:
             frequency_khz = _frequency_to_khz(item["frequency"])
+            activator = _required_text(item["activator"])
+            park = _required_text(item["reference"])
+            mode = _required_text(item["mode"])
             spots.append(
                 Spot(
-                    activator=str(item["activator"]),
-                    park=str(item["reference"]),
+                    activator=activator,
+                    park=park,
                     frequency_khz=frequency_khz,
-                    mode=str(item["mode"]),
-                    spotter=str(item.get("spotter", "")),
-                    comments=str(item.get("comments", "")),
+                    mode=mode,
+                    spotter=_optional_text(item.get("spotter")),
+                    comments=_optional_text(item.get("comments")),
                     expires_at=item.get("expire"),
                 )
             )
@@ -51,3 +59,18 @@ def _frequency_to_khz(value: Any) -> float:
     if number < 1000:
         return number * 1000
     return number
+
+
+def _required_text(value: Any) -> str:
+    if value is None:
+        raise ValueError("required text is missing")
+    text = str(value).strip()
+    if not text:
+        raise ValueError("required text is blank")
+    return text
+
+
+def _optional_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value)
