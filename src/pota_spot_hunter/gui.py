@@ -2,10 +2,15 @@ from typing import Protocol
 
 from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QPushButton,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -14,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from .domain import Spot
 from .rig import RigController
+from .settings import AppSettings, save_settings
 from .spot_state import SpotState
 
 
@@ -53,6 +59,8 @@ class MainWindow(QMainWindow):
         logger: Logger,
         spot_source: SpotSource | None = None,
         refresh_seconds: int = 60,
+        settings: AppSettings | None = None,
+        settings_path=None,
     ) -> None:
         super().__init__()
         self.setWindowTitle("POTA Spot Hunter")
@@ -62,12 +70,17 @@ class MainWindow(QMainWindow):
         self.rig = rig
         self.logger = logger
         self.spot_source = spot_source
+        self.settings = settings or AppSettings(
+            refresh_seconds=refresh_seconds,
+            ignore_minutes=state.ignore_minutes,
+        )
+        self.settings_path = settings_path
         self.refresh_thread: QThread | None = None
         self.refresh_worker: RefreshWorker | None = None
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self.refresh_spots)
         if self.spot_source is not None:
-            self.refresh_timer.start(refresh_seconds * 1000)
+            self.refresh_timer.start(self.settings.refresh_seconds * 1000)
 
         self.table = QTableWidget(0, len(self.HEADERS))
         self.table.setHorizontalHeaderLabels(self.HEADERS)
@@ -84,7 +97,9 @@ class MainWindow(QMainWindow):
         self.refresh_button = QPushButton("Refresh")
         self.refresh_button.clicked.connect(self.refresh_spots)
         toolbar.addWidget(self.refresh_button)
-        toolbar.addWidget(QPushButton("Settings"))
+        self.settings_button = QPushButton("Settings")
+        self.settings_button.clicked.connect(self.open_settings)
+        toolbar.addWidget(self.settings_button)
         toolbar.addStretch()
         layout.addLayout(toolbar)
         layout.addWidget(self.table)
@@ -121,6 +136,17 @@ class MainWindow(QMainWindow):
             """
         )
         self.render_spots()
+
+    def open_settings(self) -> None:
+        dialog = SettingsDialog(self.settings)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self.settings = dialog.to_settings()
+        save_settings(self.settings, self.settings_path)
+        self.state.ignore_minutes = self.settings.ignore_minutes
+        if self.spot_source is not None:
+            self.refresh_timer.start(self.settings.refresh_seconds * 1000)
+        self.status_label.setText("Settings saved")
 
     def refresh_spots(self) -> None:
         if self.spot_source is None:
@@ -221,3 +247,50 @@ class MainWindow(QMainWindow):
         self.state.mark_cant_hear(spot)
         self.status_label.setText(f"{spot.activator} ignored temporarily")
         self.render_spots()
+
+
+class SettingsDialog(QDialog):
+    def __init__(self, settings: AppSettings) -> None:
+        super().__init__()
+        self.setWindowTitle("Settings")
+
+        self.refresh_seconds = QSpinBox()
+        self.refresh_seconds.setRange(1, 3600)
+        self.refresh_seconds.setValue(settings.refresh_seconds)
+
+        self.ignore_minutes = QSpinBox()
+        self.ignore_minutes.setRange(0, 1440)
+        self.ignore_minutes.setValue(settings.ignore_minutes)
+
+        self.logger_host = QLineEdit(settings.logger_host)
+
+        self.logger_port = QSpinBox()
+        self.logger_port.setRange(1, 65535)
+        self.logger_port.setValue(settings.logger_port)
+
+        self.omnirig_rig_number = QSpinBox()
+        self.omnirig_rig_number.setRange(1, 2)
+        self.omnirig_rig_number.setValue(settings.omnirig_rig_number)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        layout = QFormLayout(self)
+        layout.addRow("Refresh seconds", self.refresh_seconds)
+        layout.addRow("Ignore minutes", self.ignore_minutes)
+        layout.addRow("Logger host", self.logger_host)
+        layout.addRow("Logger port", self.logger_port)
+        layout.addRow("OmniRig rig number", self.omnirig_rig_number)
+        layout.addRow(buttons)
+
+    def to_settings(self) -> AppSettings:
+        return AppSettings(
+            refresh_seconds=self.refresh_seconds.value(),
+            ignore_minutes=self.ignore_minutes.value(),
+            logger_host=self.logger_host.text(),
+            logger_port=self.logger_port.value(),
+            omnirig_rig_number=self.omnirig_rig_number.value(),
+        ).validate()
