@@ -1,14 +1,28 @@
 $ErrorActionPreference = "Stop"
 
+function Invoke-Checked {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Command,
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$Arguments
+  )
+
+  & $Command @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "Command failed with exit code ${LASTEXITCODE}: $Command $Arguments"
+  }
+}
+
 if (-not (Test-Path ".\.venv\Scripts\python.exe")) {
-  py -m venv .venv
+  Invoke-Checked py -m venv .venv
 }
 
 $python = ".\.venv\Scripts\python.exe"
 
-& $python -m pip install -e ".[dev,windows]"
-& $python -m pytest
-& $python -m PyInstaller `
+Invoke-Checked $python -m pip install -e ".[dev,windows]"
+Invoke-Checked $python -m pytest
+Invoke-Checked $python -m PyInstaller `
   --name "POTA Spot Hunter" `
   --windowed `
   --onefile `
