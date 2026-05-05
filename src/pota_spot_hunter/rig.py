@@ -27,14 +27,12 @@ class FakeRigController:
 
 
 class OmniRigController:
-    MODE_MAP = {
-        "LSB": 1,
-        "USB": 2,
-        "SSB": 2,
-        "CW": 3,
-        "DIGI": 12,
-        "FT8": 12,
-    }
+    MODE_SSB_U = 0x02000000
+    MODE_SSB_L = 0x04000000
+    MODE_CW_U = 0x00800000
+    MODE_CW_L = 0x01000000
+    MODE_DATA_U = 0x08000000
+    MODE_DATA_L = 0x10000000
 
     def __init__(self, rig_number: int = 1) -> None:
         if rig_number not in (1, 2):
@@ -46,6 +44,29 @@ class OmniRigController:
 
     def tune(self, frequency_khz: float, mode: str) -> None:
         self.rig.FreqA = int(frequency_khz * 1000)
-        rig_mode = self.MODE_MAP.get(mode.upper())
+        rig_mode = mode_identifier_for_frequency(frequency_khz, mode)
         if rig_mode is not None:
-            self.rig.Mode = rig_mode
+            self.rig.SetMode(rig_mode)
+
+
+def mode_identifier_for_frequency(frequency_khz: float, mode: str) -> int | None:
+    normalized = mode.strip().upper()
+    if normalized == "LSB":
+        return OmniRigController.MODE_SSB_L
+    if normalized == "USB":
+        return OmniRigController.MODE_SSB_U
+    if normalized == "SSB":
+        return (
+            OmniRigController.MODE_SSB_L
+            if frequency_khz < 10000
+            else OmniRigController.MODE_SSB_U
+        )
+    if normalized == "CW":
+        return OmniRigController.MODE_CW_L
+    if normalized in {"DIGI", "FT8"}:
+        return (
+            OmniRigController.MODE_DATA_L
+            if frequency_khz < 10000
+            else OmniRigController.MODE_DATA_U
+        )
+    return None
