@@ -26,6 +26,23 @@ def test_parse_pota_spots_from_api_shape():
     assert spots[0].spotter == "W1XYZ"
     assert spots[0].comments == "57 into CT"
     assert spots[0].expires_at == "2026-04-27T18:00:00Z"
+    assert spots[0].is_qrt is False
+
+
+def test_parse_marks_qrt_spots_from_comments():
+    payload = [
+        {
+            "activator": "K1ABC",
+            "reference": "US-1234",
+            "frequency": "14.244",
+            "mode": "SSB",
+            "comments": "QRT TNX",
+        }
+    ]
+
+    spots = parse_pota_spots(payload)
+
+    assert spots[0].is_qrt is True
 
 
 def test_parse_skips_unusable_spots_and_preserves_valid_neighbors():

@@ -2,6 +2,7 @@ from typing import Protocol
 
 from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -70,6 +71,9 @@ class MainWindow(QMainWindow):
         self.rig = rig
         self.logger = logger
         self.selected_spot_key = None
+        self.show_qrt = False
+        self.selected_modes: set[str] = set()
+        self.mode_checkboxes: dict[str, QCheckBox] = {}
         self.spot_source = spot_source
         self.settings = settings or AppSettings(
             refresh_seconds=refresh_seconds,
@@ -101,6 +105,14 @@ class MainWindow(QMainWindow):
         self.settings_button = QPushButton("Settings")
         self.settings_button.clicked.connect(self.open_settings)
         toolbar.addWidget(self.settings_button)
+        self.show_qrt_checkbox = QCheckBox("Show QRT")
+        self.show_qrt_checkbox.setChecked(self.show_qrt)
+        self.show_qrt_checkbox.toggled.connect(self.set_show_qrt)
+        toolbar.addWidget(self.show_qrt_checkbox)
+        self.mode_filter_label = QLabel("Modes:")
+        toolbar.addWidget(self.mode_filter_label)
+        self.mode_filter_layout = QHBoxLayout()
+        toolbar.addLayout(self.mode_filter_layout)
         toolbar.addStretch()
         layout.addLayout(toolbar)
         layout.addWidget(self.table)
@@ -132,6 +144,31 @@ class MainWindow(QMainWindow):
             }
             QPushButton:pressed {
                 background: #e5e7eb;
+                color: #111827;
+            }
+            QCheckBox {
+                color: #111827;
+                background: #ffffff;
+                border: 1px solid #9ca3af;
+                border-radius: 4px;
+                padding: 4px 8px;
+                spacing: 4px;
+            }
+            QCheckBox:hover {
+                background: #f3f4f6;
+                border-color: #6b7280;
+            }
+            QCheckBox::indicator {
+                width: 12px;
+                height: 12px;
+                border: 1px solid #6b7280;
+                background: #ffffff;
+            }
+            QCheckBox::indicator:checked {
+                background: #2563eb;
+                border-color: #1d4ed8;
+            }
+            QLabel {
                 color: #111827;
             }
             """
@@ -201,7 +238,8 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def render_spots(self) -> None:
-        self.visible_spots = self.state.visible_spots(self.all_spots)
+        self.sync_mode_filters()
+        self.visible_spots = self.filter_spots(self.state.visible_spots(self.all_spots))
         self.table.setRowCount(len(self.visible_spots))
         for row, spot in enumerate(self.visible_spots):
             values = [
@@ -229,6 +267,38 @@ class MainWindow(QMainWindow):
             self.table.setCellWidget(row, 6, actions)
         self.table.resizeColumnsToContents()
         self.restore_selected_spot()
+
+    def filter_spots(self, spots: list[Spot]) -> list[Spot]:
+        return [
+            spot
+            for spot in spots
+            if (self.show_qrt or not spot.is_qrt)
+            and (not self.mode_checkboxes or spot.mode in self.selected_modes)
+        ]
+
+    def sync_mode_filters(self) -> None:
+        for mode in sorted({spot.mode for spot in self.all_spots}):
+            if mode in self.mode_checkboxes:
+                continue
+            self.selected_modes.add(mode)
+            checkbox = QCheckBox(mode)
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(
+                lambda checked, selected_mode=mode: self.set_mode_visible(selected_mode, checked)
+            )
+            self.mode_checkboxes[mode] = checkbox
+            self.mode_filter_layout.addWidget(checkbox)
+
+    def set_show_qrt(self, checked: bool) -> None:
+        self.show_qrt = checked
+        self.render_spots()
+
+    def set_mode_visible(self, mode: str, checked: bool) -> None:
+        if checked:
+            self.selected_modes.add(mode)
+        else:
+            self.selected_modes.discard(mode)
+        self.render_spots()
 
     def restore_selected_spot(self) -> None:
         if self.selected_spot_key is None:

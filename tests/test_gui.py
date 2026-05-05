@@ -104,6 +104,51 @@ def test_stylesheet_sets_explicit_button_contrast(qtbot):
     assert "QPushButton" in stylesheet
     assert "background: #ffffff" in stylesheet
     assert "color: #111827" in stylesheet
+    assert "QCheckBox" in stylesheet
+    assert "QCheckBox::indicator:checked" in stylesheet
+
+
+def test_qrt_spots_are_hidden_by_default(qtbot):
+    active = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    qrt = Spot("W9XYZ", "US-9876", 7032.0, "CW", is_qrt=True)
+    window = make_window(qtbot, [active, qrt])
+
+    assert window.table.rowCount() == 1
+    assert window.table.item(0, 0).text() == "K1ABC"
+
+
+def test_show_qrt_filter_reveals_qrt_spots(qtbot):
+    active = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    qrt = Spot("W9XYZ", "US-9876", 7032.0, "CW", is_qrt=True)
+    window = make_window(qtbot, [active, qrt])
+
+    window.show_qrt_checkbox.setChecked(True)
+
+    assert window.table.rowCount() == 2
+    assert {window.table.item(row, 0).text() for row in range(2)} == {"K1ABC", "W9XYZ"}
+
+
+def test_mode_filters_allow_multiple_selected_modes(qtbot):
+    cw = Spot("K1ABC", "US-1234", 14032.0, "CW")
+    ssb = Spot("W9XYZ", "US-9876", 14244.0, "SSB")
+    ft8 = Spot("N0CALL", "US-5555", 14074.0, "FT8")
+    window = make_window(qtbot, [cw, ssb, ft8])
+
+    window.mode_checkboxes["FT8"].setChecked(False)
+
+    assert window.table.rowCount() == 2
+    assert {window.table.item(row, 3).text() for row in range(2)} == {"CW", "SSB"}
+
+
+def test_unchecking_all_modes_hides_all_spots(qtbot):
+    cw = Spot("K1ABC", "US-1234", 14032.0, "CW")
+    ssb = Spot("W9XYZ", "US-9876", 14244.0, "SSB")
+    window = make_window(qtbot, [cw, ssb])
+
+    window.mode_checkboxes["CW"].setChecked(False)
+    window.mode_checkboxes["SSB"].setChecked(False)
+
+    assert window.table.rowCount() == 0
 
 
 def test_refresh_starts_worker_without_fetching_on_gui_thread(qtbot):

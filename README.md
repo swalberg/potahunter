@@ -29,6 +29,11 @@ pota-spot-hunter
 - OmniRig control is used on Windows through COM.
 - Logger updates are sent as WSJT-X-compatible UDP messages. Log4OM is the first validation target.
 
+## Spot Filters
+
+- QRT spots are hidden by default. Enable `Show QRT` to include them.
+- Mode filters are shown as independent checkboxes, so multiple modes can be visible at the same time.
+
 ## Windows Validation
 
 1. Start OmniRig and confirm the target radio is connected.

@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import httpx
@@ -6,6 +7,7 @@ from .domain import Spot
 
 
 POTA_SPOTS_URL = "https://api.pota.app/spot/activator"
+QRT_PATTERN = re.compile(r"\bQRT\b", re.IGNORECASE)
 
 
 class SpotSourceError(RuntimeError):
@@ -38,6 +40,7 @@ def parse_pota_spots(payload: list[dict[str, Any]]) -> list[Spot]:
             activator = _required_text(item["activator"])
             park = _required_text(item["reference"])
             mode = _required_text(item["mode"])
+            comments = _optional_text(item.get("comments"))
             spots.append(
                 Spot(
                     activator=activator,
@@ -45,8 +48,9 @@ def parse_pota_spots(payload: list[dict[str, Any]]) -> list[Spot]:
                     frequency_khz=frequency_khz,
                     mode=mode,
                     spotter=_optional_text(item.get("spotter")),
-                    comments=_optional_text(item.get("comments")),
+                    comments=comments,
                     expires_at=item.get("expire"),
+                    is_qrt=_is_qrt(comments),
                 )
             )
         except (KeyError, TypeError, ValueError):
@@ -74,3 +78,7 @@ def _optional_text(value: Any) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def _is_qrt(comments: str) -> bool:
+    return bool(QRT_PATTERN.search(comments))

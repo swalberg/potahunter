@@ -20,6 +20,7 @@ class Spot:
     spotter: str = ""
     comments: str = ""
     expires_at: str | None = None
+    is_qrt: bool = False
     band: str = field(init=False)
     key: SpotKey = field(init=False)
 
