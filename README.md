@@ -32,11 +32,11 @@ pota-spot-hunter
 ## Windows Validation
 
 1. Start OmniRig and confirm the target radio is connected.
-2. Start Log4OM and enable WSJT-X-compatible UDP reception.
+2. Start Log4OM and add or enable a UDP inbound connection of type `JT MESSAGE` on the app's configured logger port.
 3. Run `pota-spot-hunter`.
 4. Click a POTA spot row.
 5. Confirm the radio changes to the spot frequency and mode.
-6. Confirm Log4OM receives the selected callsign, frequency, mode, and park reference.
+6. Confirm Log4OM receives the selected callsign, frequency, and mode in the main QSO input fields.
 7. Click `Worked` and confirm the row disappears.
 8. Wait for or simulate a same-activator spot on another band or mode and confirm it can appear again.
 9. Click `Can't Hear` and confirm the row disappears until the configured ignore period expires.

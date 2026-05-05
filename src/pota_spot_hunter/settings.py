@@ -14,7 +14,7 @@ class AppSettings:
     refresh_seconds: int = 60
     ignore_minutes: int = 15
     logger_host: str = "127.0.0.1"
-    logger_port: int = 2237
+    logger_port: int = 2238
     omnirig_rig_number: int = 1
 
     def validate(self) -> "AppSettings":

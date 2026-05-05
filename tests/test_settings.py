@@ -11,7 +11,7 @@ def test_default_settings():
     assert settings.refresh_seconds == 60
     assert settings.ignore_minutes == 15
     assert settings.logger_host == "127.0.0.1"
-    assert settings.logger_port == 2237
+    assert settings.logger_port == 2238
     assert settings.omnirig_rig_number == 1
 
 

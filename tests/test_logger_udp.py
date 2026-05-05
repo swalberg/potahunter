@@ -3,8 +3,10 @@ import struct
 from pota_spot_hunter.domain import Spot
 from pota_spot_hunter.logger_udp import (
     MAGIC,
+    MESSAGE_TYPE_HEARTBEAT,
     MESSAGE_TYPE_STATUS,
     SCHEMA_VERSION,
+    build_heartbeat_packet,
     build_status_packet,
 )
 
@@ -24,10 +26,23 @@ def test_status_packet_contains_wsjt_x_header_and_spot_details():
     assert packet[:4] == MAGIC.to_bytes(4, "big")
     assert packet[4:8] == SCHEMA_VERSION.to_bytes(4, "big")
     assert packet[8:12] == MESSAGE_TYPE_STATUS.to_bytes(4, "big")
-    assert b"POTA Spot Hunter" in packet
+    assert b"WSJT-X" in packet
     assert b"K1ABC" in packet
     assert b"US-1234" in packet
     assert b"SSB" in packet
+
+
+def test_heartbeat_packet_identifies_as_wsjtx_peer():
+    reader = PacketReader(build_heartbeat_packet())
+
+    assert reader.uint32() == MAGIC
+    assert reader.uint32() == SCHEMA_VERSION
+    assert reader.uint32() == MESSAGE_TYPE_HEARTBEAT
+    assert reader.qstring() == "WSJT-X"
+    assert reader.uint32() == SCHEMA_VERSION
+    assert reader.qstring() == "POTA Spot Hunter"
+    assert reader.qstring() == ""
+    assert reader.done()
 
 
 def test_status_packet_fields_are_aligned():
@@ -45,7 +60,7 @@ def test_status_packet_fields_are_aligned():
     assert reader.uint32() == MAGIC
     assert reader.uint32() == SCHEMA_VERSION
     assert reader.uint32() == MESSAGE_TYPE_STATUS
-    assert reader.qstring() == "POTA Spot Hunter"
+    assert reader.qstring() == "WSJT-X"
     assert reader.uint64() == 14244000
     assert reader.qstring() == "SSB"
     assert reader.qstring() == "K1ABC"
@@ -65,7 +80,7 @@ def test_status_packet_fields_are_aligned():
     assert reader.uint8() == 0
     assert reader.uint32() == 0
     assert reader.uint32() == 0
-    assert reader.qstring() == "POTA Spot Hunter"
+    assert reader.qstring() == "WSJT-X"
     assert reader.done()
 
 
@@ -90,7 +105,10 @@ def test_logger_client_sends_status_packet(monkeypatch):
 
     LoggerClient("127.0.0.1", 2237).send_spot(spot)
 
-    assert sent == [(build_status_packet(spot), ("127.0.0.1", 2237))]
+    assert sent == [
+        (build_heartbeat_packet(), ("127.0.0.1", 2237)),
+        (build_status_packet(spot), ("127.0.0.1", 2237)),
+    ]
 
 
 class PacketReader:
