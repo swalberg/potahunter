@@ -69,6 +69,7 @@ class MainWindow(QMainWindow):
         self.state = state
         self.rig = rig
         self.logger = logger
+        self.selected_spot_key = None
         self.spot_source = spot_source
         self.settings = settings or AppSettings(
             refresh_seconds=refresh_seconds,
@@ -227,6 +228,17 @@ class MainWindow(QMainWindow):
             action_layout.addWidget(cant_hear_button)
             self.table.setCellWidget(row, 6, actions)
         self.table.resizeColumnsToContents()
+        self.restore_selected_spot()
+
+    def restore_selected_spot(self) -> None:
+        if self.selected_spot_key is None:
+            self.table.clearSelection()
+            return
+        for row, spot in enumerate(self.visible_spots):
+            if spot.key == self.selected_spot_key:
+                self.table.selectRow(row)
+                return
+        self.table.clearSelection()
 
     def handle_row_activated(self, row: int) -> None:
         if row < 0 or row >= len(self.visible_spots):
@@ -238,6 +250,7 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             self.status_label.setText(f"{spot.activator}: {exc}")
             return
+        self.selected_spot_key = spot.key
         self.table.selectRow(row)
         self.status_label.setText(
             f"{spot.activator} {spot.park} on {spot.frequency_khz / 1000:.3f} {spot.mode} selected"
@@ -245,11 +258,15 @@ class MainWindow(QMainWindow):
 
     def mark_worked(self, spot: Spot) -> None:
         self.state.mark_worked(spot)
+        if self.selected_spot_key == spot.key:
+            self.selected_spot_key = None
         self.status_label.setText(f"{spot.activator} marked worked")
         self.render_spots()
 
     def mark_cant_hear(self, spot: Spot) -> None:
         self.state.mark_cant_hear(spot)
+        if self.selected_spot_key == spot.key:
+            self.selected_spot_key = None
         self.status_label.setText(f"{spot.activator} ignored temporarily")
         self.render_spots()
 

@@ -129,6 +129,30 @@ def test_refresh_success_updates_spots_and_status(qtbot):
     assert window.status_label.text() == "Loaded 1 POTA spots"
 
 
+def test_refresh_reselects_selected_spot_after_order_changes(qtbot):
+    selected = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    other = Spot("W9XYZ", "US-9876", 7032.0, "CW")
+    window = make_window(qtbot, [selected, other])
+
+    window.handle_row_activated(0)
+    window.handle_refresh_success([other, selected])
+
+    assert window.table.currentRow() == 1
+    assert window.table.item(window.table.currentRow(), 0).text() == "K1ABC"
+
+
+def test_worked_selected_spot_clears_remembered_selection(qtbot):
+    selected = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    other = Spot("W9XYZ", "US-9876", 7032.0, "CW")
+    window = make_window(qtbot, [selected, other])
+
+    window.handle_row_activated(0)
+    window.mark_worked(selected)
+
+    assert window.selected_spot_key is None
+    assert not window.table.selectionModel().hasSelection()
+
+
 def test_refresh_failure_keeps_existing_spots(qtbot):
     existing = Spot("K1ABC", "US-1234", 14244.0, "SSB")
     window = make_window(qtbot, [existing], spot_source=FakeSpotSource([]))
