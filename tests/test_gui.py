@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import time
 
 from PySide6.QtCore import Qt
@@ -48,12 +49,84 @@ def test_table_click_tunes_and_sends_logger_update(qtbot):
     qtbot.mouseClick(
         window.table.viewport(),
         Qt.MouseButton.LeftButton,
-        pos=window.table.visualItemRect(window.table.item(0, 0)).center(),
+        pos=window.table.visualItemRect(window.table.item(0, 1)).center(),
     )
 
     assert rig.commands[0].frequency_khz == 14244.0
     assert logger.sent == [spot]
     assert "K1ABC" in window.status_label.text()
+
+
+def test_table_shows_compact_spot_age(qtbot, monkeypatch):
+    original = MainWindow.format_spot_age
+    monkeypatch.setattr(
+        MainWindow,
+        "format_spot_age",
+        lambda self, spot, now=None: original(
+            self,
+            spot,
+            now=datetime(2026, 5, 4, 1, 18, tzinfo=timezone.utc),
+        ),
+    )
+    spot = Spot(
+        "K1ABC",
+        "US-1234",
+        14244.0,
+        "SSB",
+        spotted_at=datetime(2026, 5, 4, 0, 6, tzinfo=timezone.utc),
+    )
+    window = make_window(qtbot, [spot])
+
+    assert window.table.horizontalHeaderItem(0).text() == "Age"
+    assert window.table.item(0, 0).text() == "1h 12m"
+
+
+def test_table_leaves_age_blank_without_spot_time(qtbot):
+    spot = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    window = make_window(qtbot, [spot])
+
+    assert window.table.item(0, 0).text() == ""
+
+
+def test_table_sorts_freshest_spots_first(qtbot, monkeypatch):
+    original = MainWindow.format_spot_age
+    monkeypatch.setattr(
+        MainWindow,
+        "format_spot_age",
+        lambda self, spot, now=None: original(
+            self,
+            spot,
+            now=datetime(2026, 5, 4, 1, 18, tzinfo=timezone.utc),
+        ),
+    )
+    older = Spot(
+        "K1ABC",
+        "US-1234",
+        14244.0,
+        "SSB",
+        spotted_at=datetime(2026, 5, 4, 0, 6, tzinfo=timezone.utc),
+    )
+    newer = Spot(
+        "W9XYZ",
+        "US-9876",
+        7032.0,
+        "CW",
+        spotted_at=datetime(2026, 5, 4, 1, 16, tzinfo=timezone.utc),
+    )
+    undated = Spot("N0CALL", "US-5555", 14074.0, "FT8")
+
+    window = make_window(qtbot, [older, undated, newer])
+
+    assert [window.table.item(row, 1).text() for row in range(3)] == [
+        "W9XYZ",
+        "K1ABC",
+        "N0CALL",
+    ]
+    assert [window.table.item(row, 0).text() for row in range(3)] == [
+        "2m",
+        "1h 12m",
+        "",
+    ]
 
 
 def test_j_and_down_arrow_move_selection_without_tuning(qtbot):
@@ -129,7 +202,7 @@ def test_worked_shortcut_hides_highlighted_spot_without_tuning(qtbot):
     qtbot.keyClick(window.table, Qt.Key.Key_W)
 
     assert window.table.rowCount() == 1
-    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.table.item(0, 1).text() == "K1ABC"
     assert rig.commands == []
     assert logger.sent == []
     assert "marked worked" in window.status_label.text()
@@ -146,7 +219,7 @@ def test_nil_copy_shortcut_hides_highlighted_spot_without_tuning(qtbot):
     qtbot.keyClick(window.table, Qt.Key.Key_N)
 
     assert window.table.rowCount() == 1
-    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.table.item(0, 1).text() == "K1ABC"
     assert rig.commands == []
     assert logger.sent == []
     assert "ignored temporarily" in window.status_label.text()
@@ -228,7 +301,7 @@ def test_qrt_spots_are_hidden_by_default(qtbot):
     window = make_window(qtbot, [active, qrt])
 
     assert window.table.rowCount() == 1
-    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.table.item(0, 1).text() == "K1ABC"
 
 
 def test_show_qrt_filter_reveals_qrt_spots(qtbot):
@@ -239,7 +312,7 @@ def test_show_qrt_filter_reveals_qrt_spots(qtbot):
     window.show_qrt_checkbox.setChecked(True)
 
     assert window.table.rowCount() == 2
-    assert {window.table.item(row, 0).text() for row in range(2)} == {"K1ABC", "W9XYZ"}
+    assert {window.table.item(row, 1).text() for row in range(2)} == {"K1ABC", "W9XYZ"}
 
 
 def test_mode_filters_allow_multiple_selected_modes(qtbot):
@@ -251,7 +324,7 @@ def test_mode_filters_allow_multiple_selected_modes(qtbot):
     window.mode_checkboxes["FT8"].setChecked(False)
 
     assert window.table.rowCount() == 2
-    assert {window.table.item(row, 3).text() for row in range(2)} == {"CW", "SSB"}
+    assert {window.table.item(row, 4).text() for row in range(2)} == {"CW", "SSB"}
 
 
 def test_unchecking_all_modes_hides_all_spots(qtbot):
@@ -283,7 +356,7 @@ def test_refresh_success_updates_spots_and_status(qtbot):
     window.handle_refresh_success([spot])
 
     assert window.table.rowCount() == 1
-    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.table.item(0, 1).text() == "K1ABC"
     assert window.refresh_button.isEnabled() is True
     assert window.status_label.text() == "Loaded 1 POTA spots"
 
@@ -297,7 +370,7 @@ def test_refresh_reselects_selected_spot_after_order_changes(qtbot):
     window.handle_refresh_success([other, selected])
 
     assert window.table.currentRow() == 1
-    assert window.table.item(window.table.currentRow(), 0).text() == "K1ABC"
+    assert window.table.item(window.table.currentRow(), 1).text() == "K1ABC"
 
 
 def test_worked_selected_spot_clears_remembered_selection(qtbot):
@@ -319,7 +392,7 @@ def test_refresh_failure_keeps_existing_spots(qtbot):
     window.handle_refresh_failure("network down")
 
     assert window.table.rowCount() == 1
-    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.table.item(0, 1).text() == "K1ABC"
     assert window.refresh_button.isEnabled() is True
     assert window.status_label.text() == "POTA refresh failed: network down"
 
@@ -333,7 +406,7 @@ def test_refresh_worker_success_cleans_up_thread(qtbot):
     qtbot.waitUntil(lambda: window.refresh_thread is None, timeout=1000)
 
     assert window.table.rowCount() == 1
-    assert window.table.item(0, 0).text() == "K1ABC"
+    assert window.table.item(0, 1).text() == "K1ABC"
     assert window.refresh_worker is None
     assert window.refresh_button.isEnabled() is True
 
@@ -383,7 +456,7 @@ def make_window(qtbot, spots, rig=None, logger=None, spot_source=None):
 
 
 def click_action_button(qtbot, window, text):
-    actions = window.table.cellWidget(0, 6)
+    actions = window.table.cellWidget(0, 7)
     buttons = actions.findChildren(QPushButton)
     button = next(button for button in buttons if button.text() == text)
     qtbot.mouseClick(button, Qt.MouseButton.LeftButton)

@@ -33,6 +33,7 @@ pota-spot-hunter
 
 - QRT spots are hidden by default. Enable `Show QRT` to include them.
 - Mode filters are shown as independent checkboxes, so multiple modes can be visible at the same time.
+- The leftmost `Age` column shows compact spot freshness from the POTA `spotTime` value, such as `2m` or `1h 12m`; spots are sorted newest first.
 
 ## Keyboard Controls
 

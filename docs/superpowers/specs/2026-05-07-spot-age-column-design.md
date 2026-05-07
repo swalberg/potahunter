@@ -24,7 +24,7 @@ Existing spot identity stays unchanged: worked and can't-hear suppression should
 
 ## GUI Rendering
 
-Place `Age` near the front of the table after `Call`, so operators can scan freshness before frequency and mode. Existing row activation, keyboard shortcuts, filtering, and action buttons should continue to use the same visible row indexes and spot objects.
+Place `Age` as the leftmost table column, followed by `Call`, so operators see freshness before anything else. Sort the displayed spot list by age with the newest spots first and spots without usable timestamps at the bottom. Existing row activation, keyboard shortcuts, filtering, and action buttons should continue to use the same visible row indexes and spot objects.
 
 The age display can be calculated when the table renders. The app already refreshes the table when fresh API data arrives, so a separate once-per-minute UI timer is out of scope for this first version.
 
@@ -39,5 +39,6 @@ Add tests for:
 - parsing `spotTime` into a timezone-aware UTC `datetime`.
 - preserving otherwise valid spots when `spotTime` is missing or invalid.
 - formatting compact age values for minute and hour ranges.
-- rendering the new `Age` column in the table.
+- rendering the new `Age` column as the leftmost table column.
+- sorting visible rows with the freshest spots first.
 - keeping keyboard/action column behavior intact after the column insertion.

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Protocol
 
 from PySide6.QtCore import QEvent, QObject, QThread, QTimer, Qt, Signal
@@ -50,7 +51,7 @@ class RefreshWorker(QObject):
 
 
 class MainWindow(QMainWindow):
-    HEADERS = ["Call", "Freq", "Band", "Mode", "Park", "Comments", "After Trying"]
+    HEADERS = ["Age", "Call", "Freq", "Band", "Mode", "Park", "Comments", "After Trying"]
 
     def __init__(
         self,
@@ -248,6 +249,38 @@ class MainWindow(QMainWindow):
             return
         self.mark_cant_hear(self.visible_spots[row])
 
+    def format_spot_age(self, spot: Spot, now: datetime | None = None) -> str:
+        if spot.spotted_at is None:
+            return ""
+        current = now or datetime.now(timezone.utc)
+        spotted_at = spot.spotted_at
+        if spotted_at.tzinfo is None:
+            spotted_at = spotted_at.replace(tzinfo=timezone.utc)
+        elapsed_seconds = max(
+            0,
+            int((current - spotted_at.astimezone(timezone.utc)).total_seconds()),
+        )
+        elapsed_minutes = elapsed_seconds // 60
+        if elapsed_minutes < 60:
+            return f"{elapsed_minutes}m"
+        hours = elapsed_minutes // 60
+        minutes = elapsed_minutes % 60
+        return f"{hours}h {minutes}m"
+
+    def sort_spots_by_age(self, spots: list[Spot]) -> list[Spot]:
+        def spotted_at_utc(spot: Spot) -> datetime:
+            if spot.spotted_at is None:
+                return datetime.min.replace(tzinfo=timezone.utc)
+            if spot.spotted_at.tzinfo is None:
+                return spot.spotted_at.replace(tzinfo=timezone.utc)
+            return spot.spotted_at.astimezone(timezone.utc)
+
+        return sorted(
+            spots,
+            key=lambda spot: (spot.spotted_at is not None, spotted_at_utc(spot)),
+            reverse=True,
+        )
+
     def open_settings(self) -> None:
         dialog = SettingsDialog(self.settings)
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -312,10 +345,13 @@ class MainWindow(QMainWindow):
 
     def render_spots(self) -> None:
         self.sync_mode_filters()
-        self.visible_spots = self.filter_spots(self.state.visible_spots(self.all_spots))
+        self.visible_spots = self.sort_spots_by_age(
+            self.filter_spots(self.state.visible_spots(self.all_spots))
+        )
         self.table.setRowCount(len(self.visible_spots))
         for row, spot in enumerate(self.visible_spots):
             values = [
+                self.format_spot_age(spot),
                 spot.activator,
                 f"{spot.frequency_khz / 1000:.3f}",
                 spot.band,
@@ -337,7 +373,7 @@ class MainWindow(QMainWindow):
             action_layout.setContentsMargins(2, 2, 2, 2)
             action_layout.addWidget(worked_button)
             action_layout.addWidget(cant_hear_button)
-            self.table.setCellWidget(row, 6, actions)
+            self.table.setCellWidget(row, 7, actions)
         self.table.resizeColumnsToContents()
         self.restore_selected_spot()
         self.table.setFocus()

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import re
 from typing import Any
 
@@ -50,6 +51,7 @@ def parse_pota_spots(payload: list[dict[str, Any]]) -> list[Spot]:
                     spotter=_optional_text(item.get("spotter")),
                     comments=comments,
                     expires_at=item.get("expire"),
+                    spotted_at=_parse_spot_time(item.get("spotTime")),
                     is_qrt=_is_qrt(comments),
                 )
             )
@@ -78,6 +80,21 @@ def _optional_text(value: Any) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def _parse_spot_time(value: Any) -> datetime | None:
+    if value is None:
+        return None
+    try:
+        text = str(value).strip()
+        if not text:
+            return None
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _is_qrt(comments: str) -> bool:

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from .bands import band_for_frequency_khz
 
@@ -20,6 +21,7 @@ class Spot:
     spotter: str = ""
     comments: str = ""
     expires_at: str | None = None
+    spotted_at: datetime | None = None
     is_qrt: bool = False
     band: str = field(init=False)
     key: SpotKey = field(init=False)
