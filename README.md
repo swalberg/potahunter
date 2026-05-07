@@ -2,6 +2,8 @@
 
 POTA Spot Hunter is a Python desktop app for quickly working Parks on the Air activator spots.
 
+![POTA Spot Hunter screenshot](screenshot.png)
+
 The first version targets Windows station use with OmniRig and WSJT-X-compatible UDP logger updates. The app can still be developed and tested on macOS with a fake rig controller.
 
 ## Development
