@@ -34,6 +34,14 @@ pota-spot-hunter
 - QRT spots are hidden by default. Enable `Show QRT` to include them.
 - Mode filters are shown as independent checkboxes, so multiple modes can be visible at the same time.
 
+## Keyboard Controls
+
+- `j` or `Down Arrow`: move the highlighted spot down.
+- `k` or `Up Arrow`: move the highlighted spot up.
+- `Space`: tune the radio and send the highlighted spot to the logger.
+- `w`: mark the highlighted spot worked.
+- `n`: mark the highlighted spot nil copy / can't hear.
+
 ## Windows Validation
 
 1. Start OmniRig and confirm the target radio is connected.

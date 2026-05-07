@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from PySide6.QtCore import QObject, QThread, QTimer, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QThread, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -93,6 +93,7 @@ class MainWindow(QMainWindow):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.cellClicked.connect(lambda row, column: self.handle_row_activated(row))
+        self.table.installEventFilter(self)
 
         self.status_label = QLabel("Ready")
 
@@ -174,6 +175,78 @@ class MainWindow(QMainWindow):
             """
         )
         self.render_spots()
+
+    def eventFilter(self, watched, event) -> bool:
+        if watched is self.table and event.type() == QEvent.Type.KeyPress:
+            handlers = {
+                Qt.Key.Key_J: self.move_selection_down,
+                Qt.Key.Key_Down: self.move_selection_down,
+                Qt.Key.Key_K: self.move_selection_up,
+                Qt.Key.Key_Up: self.move_selection_up,
+                Qt.Key.Key_Space: self.activate_selected_spot,
+                Qt.Key.Key_W: self.mark_selected_worked,
+                Qt.Key.Key_N: self.mark_selected_cant_hear,
+            }
+            handler = handlers.get(event.key())
+            if handler is not None:
+                handler()
+                return True
+        return super().eventFilter(watched, event)
+
+    def selected_or_first_row(self) -> int | None:
+        if not self.visible_spots:
+            return None
+        row = self.table.currentRow() if self.has_spot_selection() else 0
+        if row < 0 or row >= len(self.visible_spots):
+            row = 0
+        self.table.selectRow(row)
+        return row
+
+    def has_spot_selection(self) -> bool:
+        return (
+            self.table.selectionModel().hasSelection()
+            and 0 <= self.table.currentRow() < len(self.visible_spots)
+        )
+
+    def move_selection_down(self) -> None:
+        if not self.has_spot_selection():
+            self.selected_or_first_row()
+            self.table.setFocus()
+            return
+        row = self.selected_or_first_row()
+        if row is None:
+            return
+        self.table.selectRow(min(row + 1, len(self.visible_spots) - 1))
+        self.table.setFocus()
+
+    def move_selection_up(self) -> None:
+        if not self.has_spot_selection():
+            self.selected_or_first_row()
+            self.table.setFocus()
+            return
+        row = self.selected_or_first_row()
+        if row is None:
+            return
+        self.table.selectRow(max(row - 1, 0))
+        self.table.setFocus()
+
+    def activate_selected_spot(self) -> None:
+        row = self.selected_or_first_row()
+        if row is None:
+            return
+        self.handle_row_activated(row)
+
+    def mark_selected_worked(self) -> None:
+        row = self.selected_or_first_row()
+        if row is None:
+            return
+        self.mark_worked(self.visible_spots[row])
+
+    def mark_selected_cant_hear(self) -> None:
+        row = self.selected_or_first_row()
+        if row is None:
+            return
+        self.mark_cant_hear(self.visible_spots[row])
 
     def open_settings(self) -> None:
         dialog = SettingsDialog(self.settings)
@@ -267,6 +340,7 @@ class MainWindow(QMainWindow):
             self.table.setCellWidget(row, 6, actions)
         self.table.resizeColumnsToContents()
         self.restore_selected_spot()
+        self.table.setFocus()
 
     def filter_spots(self, spots: list[Spot]) -> list[Spot]:
         return [

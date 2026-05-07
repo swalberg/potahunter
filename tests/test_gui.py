@@ -56,6 +56,120 @@ def test_table_click_tunes_and_sends_logger_update(qtbot):
     assert "K1ABC" in window.status_label.text()
 
 
+def test_j_and_down_arrow_move_selection_without_tuning(qtbot):
+    first = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    second = Spot("W9XYZ", "US-9876", 7032.0, "CW")
+    rig = FakeRigController()
+    logger = FakeLogger()
+    window = make_window(qtbot, [first, second], rig=rig, logger=logger)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_J)
+
+    assert window.table.currentRow() == 0
+    assert rig.commands == []
+    assert logger.sent == []
+
+    qtbot.keyClick(window.table, Qt.Key.Key_J)
+
+    assert window.table.currentRow() == 1
+    assert rig.commands == []
+    assert logger.sent == []
+
+    qtbot.keyClick(window.table, Qt.Key.Key_Down)
+
+    assert window.table.currentRow() == 1
+    assert rig.commands == []
+    assert logger.sent == []
+
+
+def test_k_and_up_arrow_move_selection_without_tuning(qtbot):
+    first = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    second = Spot("W9XYZ", "US-9876", 7032.0, "CW")
+    rig = FakeRigController()
+    logger = FakeLogger()
+    window = make_window(qtbot, [first, second], rig=rig, logger=logger)
+    window.table.selectRow(1)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_K)
+
+    assert window.table.currentRow() == 0
+    assert rig.commands == []
+    assert logger.sent == []
+
+    qtbot.keyClick(window.table, Qt.Key.Key_Up)
+
+    assert window.table.currentRow() == 0
+    assert rig.commands == []
+    assert logger.sent == []
+
+
+def test_space_activates_highlighted_spot(qtbot):
+    first = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    second = Spot("W9XYZ", "US-9876", 7032.0, "CW")
+    rig = FakeRigController()
+    logger = FakeLogger()
+    window = make_window(qtbot, [first, second], rig=rig, logger=logger)
+    window.table.selectRow(1)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_Space)
+
+    assert rig.commands[0].frequency_khz == 7032.0
+    assert logger.sent == [second]
+    assert "W9XYZ" in window.status_label.text()
+
+
+def test_worked_shortcut_hides_highlighted_spot_without_tuning(qtbot):
+    first = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    second = Spot("W9XYZ", "US-9876", 7032.0, "CW")
+    rig = FakeRigController()
+    logger = FakeLogger()
+    window = make_window(qtbot, [first, second], rig=rig, logger=logger)
+    window.table.selectRow(1)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_W)
+
+    assert window.table.rowCount() == 1
+    assert window.table.item(0, 0).text() == "K1ABC"
+    assert rig.commands == []
+    assert logger.sent == []
+    assert "marked worked" in window.status_label.text()
+
+
+def test_nil_copy_shortcut_hides_highlighted_spot_without_tuning(qtbot):
+    first = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    second = Spot("W9XYZ", "US-9876", 7032.0, "CW")
+    rig = FakeRigController()
+    logger = FakeLogger()
+    window = make_window(qtbot, [first, second], rig=rig, logger=logger)
+    window.table.selectRow(1)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_N)
+
+    assert window.table.rowCount() == 1
+    assert window.table.item(0, 0).text() == "K1ABC"
+    assert rig.commands == []
+    assert logger.sent == []
+    assert "ignored temporarily" in window.status_label.text()
+
+
+def test_keyboard_shortcuts_on_empty_table_do_not_crash(qtbot):
+    rig = FakeRigController()
+    logger = FakeLogger()
+    window = make_window(qtbot, [], rig=rig, logger=logger)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_J)
+    qtbot.keyClick(window.table, Qt.Key.Key_K)
+    qtbot.keyClick(window.table, Qt.Key.Key_Down)
+    qtbot.keyClick(window.table, Qt.Key.Key_Up)
+    qtbot.keyClick(window.table, Qt.Key.Key_Space)
+    qtbot.keyClick(window.table, Qt.Key.Key_W)
+    qtbot.keyClick(window.table, Qt.Key.Key_N)
+
+    assert window.table.rowCount() == 0
+    assert rig.commands == []
+    assert logger.sent == []
+
+
 def test_worked_button_hides_row_without_tuning(qtbot):
     spot = Spot("K1ABC", "US-1234", 14244.0, "SSB", "W1XYZ", "57")
     rig = FakeRigController()
