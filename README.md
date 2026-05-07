@@ -57,6 +57,12 @@ pota-spot-hunter
 8. Wait for or simulate a same-activator spot on another band or mode and confirm it can appear again.
 9. Click `Can't Hear` and confirm the row disappears until the configured ignore period expires.
 
+## CI and Releases
+
+- Pull requests and pushes to `main` run the test suite on GitHub Actions.
+- To cut a release, update `pyproject.toml` with the new version, commit and push it, then run the `Release` workflow with a matching tag such as `v0.2.0`.
+- The release workflow builds `dist/POTA Spot Hunter.exe` on Windows and attaches it to the GitHub Release.
+
 ## Packaging on Windows
 
 The packaging script creates `.venv` if needed, installs the Windows dependencies into it, runs the tests, and builds a one-file executable.
