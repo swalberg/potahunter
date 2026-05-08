@@ -2,10 +2,10 @@ from datetime import datetime, timezone
 import time
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QDialog, QLabel, QPushButton
 
 from pota_spot_hunter.domain import Spot
-from pota_spot_hunter.gui import MainWindow
+from pota_spot_hunter.gui import CompleteQsoDialog, MainWindow
 from pota_spot_hunter.rig import FakeRigController
 from pota_spot_hunter.spot_state import SpotState
 
@@ -13,12 +13,18 @@ from pota_spot_hunter.spot_state import SpotState
 class FakeLogger:
     def __init__(self, error=None):
         self.sent = []
+        self.logged = []
         self.error = error
 
     def send_spot(self, spot):
         if self.error is not None:
             raise self.error
         self.sent.append(spot)
+
+    def log_qso(self, spot, rst_sent, rst_received=None):
+        if self.error is not None:
+            raise self.error
+        self.logged.append((spot, rst_sent, rst_received))
 
 
 def test_row_click_tunes_and_sends_logger_update(qtbot):
@@ -241,6 +247,92 @@ def test_keyboard_shortcuts_on_empty_table_do_not_crash(qtbot):
     assert window.table.rowCount() == 0
     assert rig.commands == []
     assert logger.sent == []
+
+
+def test_default_qso_reports_follow_mode(qtbot):
+    cw_window = make_window(qtbot, [Spot("K1ABC", "US-1234", 14032.0, "CW")])
+    ssb_window = make_window(qtbot, [Spot("W9XYZ", "US-9876", 14244.0, "SSB")])
+
+    assert cw_window.default_qso_report(cw_window.visible_spots[0]) == "599"
+    assert ssb_window.default_qso_report(ssb_window.visible_spots[0]) == "59"
+
+
+def test_complete_qso_dialog_shows_report_labels(qtbot):
+    dialog = CompleteQsoDialog(Spot("K1ABC", "US-1234", 14244.0, "SSB"), "59")
+    qtbot.addWidget(dialog)
+
+    labels = {label.text() for label in dialog.findChildren(QLabel)}
+
+    assert "Sent RST" in labels
+    assert "Received RST" in labels
+    assert dialog.sent_label.minimumWidth() == 90
+    assert "color: #111827" in dialog.sent_label.styleSheet()
+
+
+def test_shift_w_logs_qso_and_marks_worked(qtbot, monkeypatch):
+    spot = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    logger = FakeLogger()
+    window = make_window(qtbot, [spot], logger=logger)
+
+    class FakeDialog:
+        def __init__(self, spot, default_report, parent=None):
+            self.default_report = default_report
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def reports(self):
+            return ("57", "44")
+
+    monkeypatch.setattr("pota_spot_hunter.gui.CompleteQsoDialog", FakeDialog)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_W, modifier=Qt.KeyboardModifier.ShiftModifier)
+
+    assert logger.logged == [(spot, "57", "44")]
+    assert window.table.rowCount() == 0
+    assert "logged" in window.status_label.text()
+
+
+def test_shift_w_cancel_does_not_log_or_mark_worked(qtbot, monkeypatch):
+    spot = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    logger = FakeLogger()
+    window = make_window(qtbot, [spot], logger=logger)
+
+    class FakeDialog:
+        def __init__(self, spot, default_report, parent=None):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Rejected
+
+    monkeypatch.setattr("pota_spot_hunter.gui.CompleteQsoDialog", FakeDialog)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_W, modifier=Qt.KeyboardModifier.ShiftModifier)
+
+    assert logger.logged == []
+    assert window.table.rowCount() == 1
+
+
+def test_shift_w_logger_error_keeps_spot_visible(qtbot, monkeypatch):
+    spot = Spot("K1ABC", "US-1234", 14244.0, "SSB")
+    window = make_window(qtbot, [spot], logger=FakeLogger(error=RuntimeError("log failed")))
+
+    class FakeDialog:
+        def __init__(self, spot, default_report, parent=None):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def reports(self):
+            return ("57", "")
+
+    monkeypatch.setattr("pota_spot_hunter.gui.CompleteQsoDialog", FakeDialog)
+
+    qtbot.keyClick(window.table, Qt.Key.Key_W, modifier=Qt.KeyboardModifier.ShiftModifier)
+
+    assert window.table.rowCount() == 1
+    assert "log failed" in window.status_label.text()
 
 
 def test_worked_button_hides_row_without_tuning(qtbot):

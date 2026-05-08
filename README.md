@@ -30,6 +30,7 @@ pota-spot-hunter
 - POTA spots are fetched from `https://api.pota.app/spot/activator`.
 - OmniRig control is used on Windows through COM.
 - Logger updates are sent as WSJT-X-compatible UDP messages. Log4OM is the first validation target.
+- Completed QSOs are sent to the logger as WSJT-X-compatible Logged ADIF messages with contact details and POTA park reference. Station identity remains managed by the logger.
 
 ## Spot Filters
 
@@ -43,6 +44,7 @@ pota-spot-hunter
 - `k` or `Up Arrow`: move the highlighted spot up.
 - `Space`: tune the radio and send the highlighted spot to the logger.
 - `w`: mark the highlighted spot worked.
+- `Shift+W`: log the highlighted spot as a completed QSO, then mark it worked.
 - `n`: mark the highlighted spot nil copy / can't hear.
 
 ## Windows Validation

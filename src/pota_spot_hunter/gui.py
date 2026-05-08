@@ -29,6 +29,9 @@ class Logger(Protocol):
     def send_spot(self, spot: Spot) -> None:
         ...
 
+    def log_qso(self, spot: Spot, rst_sent: str, rst_received: str | None = None) -> None:
+        ...
+
 
 class SpotSource(Protocol):
     def fetch(self) -> list[Spot]:
@@ -179,6 +182,12 @@ class MainWindow(QMainWindow):
 
     def eventFilter(self, watched, event) -> bool:
         if watched is self.table and event.type() == QEvent.Type.KeyPress:
+            if (
+                event.key() == Qt.Key.Key_W
+                and event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+            ):
+                self.complete_selected_qso()
+                return True
             handlers = {
                 Qt.Key.Key_J: self.move_selection_down,
                 Qt.Key.Key_Down: self.move_selection_down,
@@ -248,6 +257,31 @@ class MainWindow(QMainWindow):
         if row is None:
             return
         self.mark_cant_hear(self.visible_spots[row])
+
+    def default_qso_report(self, spot: Spot) -> str:
+        if spot.mode == "CW":
+            return "599"
+        return "59"
+
+    def complete_selected_qso(self) -> None:
+        row = self.selected_or_first_row()
+        if row is None:
+            return
+        spot = self.visible_spots[row]
+        dialog = CompleteQsoDialog(spot, self.default_qso_report(spot), self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        rst_sent, rst_received = dialog.reports()
+        try:
+            self.logger.log_qso(spot, rst_sent, rst_received)
+        except Exception as exc:
+            self.status_label.setText(f"{spot.activator}: {exc}")
+            return
+        self.state.mark_worked(spot)
+        if self.selected_spot_key == spot.key:
+            self.selected_spot_key = None
+        self.status_label.setText(f"{spot.activator} logged and marked worked")
+        self.render_spots()
 
     def format_spot_age(self, spot: Spot, now: datetime | None = None) -> str:
         if spot.spotted_at is None:
@@ -449,6 +483,36 @@ class MainWindow(QMainWindow):
             self.selected_spot_key = None
         self.status_label.setText(f"{spot.activator} ignored temporarily")
         self.render_spots()
+
+
+class CompleteQsoDialog(QDialog):
+    def __init__(self, spot: Spot, default_report: str, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"Log {spot.activator}")
+
+        self.rst_sent = QLineEdit(default_report)
+        self.rst_received = QLineEdit(default_report)
+        self.rst_sent.selectAll()
+        self.rst_sent.setFocus()
+        self.sent_label = QLabel("Sent RST")
+        self.received_label = QLabel("Received RST")
+        for label in (self.sent_label, self.received_label):
+            label.setMinimumWidth(90)
+            label.setStyleSheet("color: #111827;")
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        layout = QFormLayout(self)
+        layout.addRow(self.sent_label, self.rst_sent)
+        layout.addRow(self.received_label, self.rst_received)
+        layout.addRow(buttons)
+
+    def reports(self) -> tuple[str, str]:
+        return self.rst_sent.text().strip(), self.rst_received.text().strip()
 
 
 class SettingsDialog(QDialog):

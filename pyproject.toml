@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pota-spot-hunter"
-version = "0.1.0"
+version = "0.2.0"
 description = "Desktop helper for hunting Parks on the Air spots"
 readme = "README.md"
 requires-python = ">=3.11"
