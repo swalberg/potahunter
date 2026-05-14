@@ -25,6 +25,15 @@ from .settings import AppSettings, save_settings
 from .spot_state import SpotState
 
 
+def mode_filter_group(mode: str) -> str:
+    normalized = mode.strip().upper()
+    if normalized in {"LSB", "USB", "SSB"}:
+        return "SSB"
+    if normalized in {"FT2", "FT4", "FT8"}:
+        return "FTx"
+    return normalized
+
+
 class Logger(Protocol):
     def send_spot(self, spot: Spot) -> None:
         ...
@@ -417,11 +426,11 @@ class MainWindow(QMainWindow):
             spot
             for spot in spots
             if (self.show_qrt or not spot.is_qrt)
-            and (not self.mode_checkboxes or spot.mode in self.selected_modes)
+            and (not self.mode_checkboxes or mode_filter_group(spot.mode) in self.selected_modes)
         ]
 
     def sync_mode_filters(self) -> None:
-        for mode in sorted({spot.mode for spot in self.all_spots}):
+        for mode in sorted({mode_filter_group(spot.mode) for spot in self.all_spots}):
             if mode in self.mode_checkboxes:
                 continue
             self.selected_modes.add(mode)

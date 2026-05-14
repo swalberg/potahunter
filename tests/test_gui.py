@@ -413,10 +413,40 @@ def test_mode_filters_allow_multiple_selected_modes(qtbot):
     ft8 = Spot("N0CALL", "US-5555", 14074.0, "FT8")
     window = make_window(qtbot, [cw, ssb, ft8])
 
-    window.mode_checkboxes["FT8"].setChecked(False)
+    window.mode_checkboxes["FTx"].setChecked(False)
 
     assert window.table.rowCount() == 2
     assert {window.table.item(row, 4).text() for row in range(2)} == {"CW", "SSB"}
+
+
+def test_mode_filters_group_ssb_sidebands(qtbot):
+    usb = Spot("K1ABC", "US-1234", 14244.0, "USB")
+    lsb = Spot("W9XYZ", "US-9876", 7244.0, "LSB")
+    ssb = Spot("N0CALL", "US-5555", 21244.0, "SSB")
+    cw = Spot("N1ABC", "US-1111", 14032.0, "CW")
+    window = make_window(qtbot, [usb, lsb, ssb, cw])
+
+    assert sorted(window.mode_checkboxes) == ["CW", "SSB"]
+
+    window.mode_checkboxes["SSB"].setChecked(False)
+
+    assert window.table.rowCount() == 1
+    assert window.table.item(0, 4).text() == "CW"
+
+
+def test_mode_filters_group_ft_modes(qtbot):
+    ft2 = Spot("K1ABC", "US-1234", 14074.0, "FT2")
+    ft4 = Spot("W9XYZ", "US-9876", 14080.0, "FT4")
+    ft8 = Spot("N0CALL", "US-5555", 14075.0, "FT8")
+    rtty = Spot("N1ABC", "US-1111", 14083.0, "RTTY")
+    window = make_window(qtbot, [ft2, ft4, ft8, rtty])
+
+    assert sorted(window.mode_checkboxes) == ["FTx", "RTTY"]
+
+    window.mode_checkboxes["FTx"].setChecked(False)
+
+    assert window.table.rowCount() == 1
+    assert window.table.item(0, 4).text() == "RTTY"
 
 
 def test_unchecking_all_modes_hides_all_spots(qtbot):
