@@ -498,7 +498,7 @@ class CompleteQsoDialog(QDialog):
         self.received_label = QLabel("Received RST")
         for label in (self.sent_label, self.received_label):
             label.setMinimumWidth(90)
-            label.setStyleSheet("color: #111827;")
+            label.setStyleSheet("color: #f9fafb;")
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel

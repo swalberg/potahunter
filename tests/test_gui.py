@@ -266,7 +266,7 @@ def test_complete_qso_dialog_shows_report_labels(qtbot):
     assert "Sent RST" in labels
     assert "Received RST" in labels
     assert dialog.sent_label.minimumWidth() == 90
-    assert "color: #111827" in dialog.sent_label.styleSheet()
+    assert "color: #f9fafb" in dialog.sent_label.styleSheet()
 
 
 def test_shift_w_logs_qso_and_marks_worked(qtbot, monkeypatch):
